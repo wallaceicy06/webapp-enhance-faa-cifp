@@ -7,10 +7,12 @@ import (
 	"os"
 
 	"github.com/wallaceicy06/webapp-enhance-faa-cifp/handlers/index"
+	"github.com/wallaceicy06/webapp-enhance-faa-cifp/handlers/process"
 )
 
 func main() {
 	http.HandleFunc("/", index.Handle)
+	http.HandleFunc("/process", process.Handle)
 
 	port := os.Getenv("PORT")
 	if port == "" {
