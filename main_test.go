@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -26,11 +27,11 @@ func TestIndexHandler(t *testing.T) {
 		)
 	}
 
-	expected := `Welcome to the FAA CIFP data enhancer.
-This app is not associated with the Federal Aviation Administration and has no warranty.
-See http://seanharger.com/posts/hundredths-of-degrees-from-death for more information.
-`
-	if diff := cmp.Diff(expected, rr.Body.String()); diff != "" {
+	var expected bytes.Buffer
+	if err := baseTemplate.Execute(&expected, nil); err != nil {
+		t.Fatalf("could not execute expected template: %v", err)
+	}
+	if diff := cmp.Diff(expected.String(), rr.Body.String()); diff != "" {
 		t.Errorf("unexpected body diff: %s", diff)
 	}
 }

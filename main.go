@@ -2,11 +2,13 @@
 package main
 
 import (
-	"fmt"
+	"html/template"
 	"log"
 	"net/http"
 	"os"
 )
+
+var baseTemplate = template.Must(template.ParseFiles("templates/base.html"))
 
 func main() {
 	http.HandleFunc("/", indexHandler)
@@ -29,7 +31,12 @@ func indexHandler(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)
 		return
 	}
-	fmt.Fprintln(w, "Welcome to the FAA CIFP data enhancer.")
-	fmt.Fprintln(w, "This app is not associated with the Federal Aviation Administration and has no warranty.")
-	fmt.Fprintln(w, "See http://seanharger.com/posts/hundredths-of-degrees-from-death for more information.")
+	// fmt.Fprintln(w, "Welcome to the FAA CIFP data enhancer.")
+	// fmt.Fprintln(w, "This app is not associated with the Federal Aviation Administration and has no warranty.")
+	// fmt.Fprintln(w, "See http://seanharger.com/posts/hundredths-of-degrees-from-death for more information.")
+	w.Header().Set("content-type", "text/html")
+	if err := baseTemplate.Execute(w, nil); err != nil {
+		log.Printf("could not execute template: %v", err)
+	}
+	log.Print("Done")
 }
