@@ -29,5 +29,7 @@ func indexHandler(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)
 		return
 	}
-	fmt.Fprint(w, "Hello, World!")
+	fmt.Fprintln(w, "Welcome to the FAA CIFP data enhancer.")
+	fmt.Fprintln(w, "This app is not associated with the Federal Aviation Administration and has no warranty.")
+	fmt.Fprintln(w, "See http://seanharger.com/posts/hundredths-of-degrees-from-death for more information.")
 }

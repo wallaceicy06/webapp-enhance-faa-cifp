@@ -4,6 +4,8 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+
+	"github.com/google/go-cmp/cmp"
 )
 
 func TestIndexHandler(t *testing.T) {
@@ -24,13 +26,12 @@ func TestIndexHandler(t *testing.T) {
 		)
 	}
 
-	expected := "Hello, World!"
-	if rr.Body.String() != expected {
-		t.Errorf(
-			"unexpected body: got (%v) want (%v)",
-			rr.Body.String(),
-			"Hello, World!",
-		)
+	expected := `Welcome to the FAA CIFP data enhancer.
+This app is not associated with the Federal Aviation Administration and has no warranty.
+See http://seanharger.com/posts/hundredths-of-degrees-from-death for more information.
+`
+	if diff := cmp.Diff(expected, rr.Body.String()); diff != "" {
+		t.Errorf("unexpected body diff: %s", diff)
 	}
 }
 
