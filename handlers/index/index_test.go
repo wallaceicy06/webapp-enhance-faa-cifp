@@ -1,4 +1,4 @@
-package main
+package index
 
 import (
 	"bytes"
@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
+	"github.com/wallaceicy06/webapp-enhance-faa-cifp/templates"
 )
 
 func TestIndexHandler(t *testing.T) {
@@ -16,7 +17,7 @@ func TestIndexHandler(t *testing.T) {
 	}
 
 	rr := httptest.NewRecorder()
-	handler := http.HandlerFunc(indexHandler)
+	handler := http.HandlerFunc(Handle)
 	handler.ServeHTTP(rr, req)
 
 	if status := rr.Code; status != http.StatusOK {
@@ -28,7 +29,7 @@ func TestIndexHandler(t *testing.T) {
 	}
 
 	var expected bytes.Buffer
-	if err := baseTemplate.Execute(&expected, nil); err != nil {
+	if err := templates.Base.Execute(&expected, nil); err != nil {
 		t.Fatalf("could not execute expected template: %v", err)
 	}
 	if diff := cmp.Diff(expected.String(), rr.Body.String()); diff != "" {
@@ -43,7 +44,7 @@ func TestIndexHandlerNotFound(t *testing.T) {
 	}
 
 	rr := httptest.NewRecorder()
-	handler := http.HandlerFunc(indexHandler)
+	handler := http.HandlerFunc(Handle)
 	handler.ServeHTTP(rr, req)
 
 	if status := rr.Code; status != http.StatusNotFound {
