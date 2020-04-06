@@ -6,6 +6,7 @@
 package alwaysroot
 
 import (
+	"log"
 	"os"
 	"path"
 	"runtime"
@@ -16,6 +17,6 @@ func init() {
 	dir := path.Join(path.Dir(filename), "..")
 	err := os.Chdir(dir)
 	if err != nil {
-		panic(err)
+		log.Printf("Could not change directory, some tests may fail: %v", err)
 	}
 }
