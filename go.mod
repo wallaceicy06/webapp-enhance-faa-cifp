@@ -3,10 +3,11 @@ module github.com/wallaceicy06/webapp-enhance-faa-cifp
 go 1.12
 
 require (
-	github.com/coreos/go-oidc v2.2.1+incompatible
+	cloud.google.com/go v0.38.0
 	github.com/google/go-cmp v0.4.0
-	github.com/pquerna/cachecontrol v0.0.0-20180517163645-1555304b9b35 // indirect
-	golang.org/x/crypto v0.0.0-20200403201458-baeed622b8d8 // indirect
-	golang.org/x/oauth2 v0.0.0-20200107190931-bf48bf16ab8d
-	gopkg.in/square/go-jose.v2 v2.4.1 // indirect
+	go.opencensus.io v0.22.3 // indirect
+	golang.org/x/oauth2 v0.0.0-20200107190931-bf48bf16ab8d // indirect
+	google.golang.org/api v0.21.0
+	google.golang.org/genproto v0.0.0-20200410110633-0848e9f44c36 // indirect
+	google.golang.org/grpc v1.28.1 // indirect
 )

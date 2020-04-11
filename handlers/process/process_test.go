@@ -61,8 +61,8 @@ func TestHandle(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			rr := httptest.NewRecorder()
 			handler := http.HandlerFunc((&Handler{
-				serviceAccountEmail: serviceAccountEmail,
-				verifier:            tt.fakeVerifier,
+				ServiceAccountEmail: serviceAccountEmail,
+				Verifier:            tt.fakeVerifier,
 			}).Handle)
 			req := httptest.NewRequest(http.MethodPost, "/", &bytes.Buffer{})
 			req.Header.Set("Authorization", tt.authHeader)
