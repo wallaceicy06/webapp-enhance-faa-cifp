@@ -36,5 +36,8 @@ jobs:
     - name: Install firestore emulator
       run: gcloud components install cloud-firestore-emulator --quiet
 
+    - name: Install gcloud beta commands
+      run: gcloud components install beta --quiet
+
     - name: Test
       run: go test -v ./...
