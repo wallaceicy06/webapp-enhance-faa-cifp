@@ -5,6 +5,7 @@ go 1.12
 require (
 	cloud.google.com/go v0.38.0
 	github.com/google/go-cmp v0.4.0
+	github.com/phayes/freeport v0.0.0-20180830031419-95f893ade6f2
 	go.opencensus.io v0.22.3 // indirect
 	golang.org/x/oauth2 v0.0.0-20200107190931-bf48bf16ab8d // indirect
 	google.golang.org/api v0.21.0

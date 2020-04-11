@@ -2,17 +2,19 @@ package db
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"log"
 	"os"
 	"os/exec"
 	"strings"
-	"sync"
 	"syscall"
 	"testing"
+	"time"
 
 	"cloud.google.com/go/firestore"
 	"github.com/google/go-cmp/cmp"
+	"github.com/phayes/freeport"
 	"google.golang.org/api/iterator"
 )
 
@@ -91,7 +93,12 @@ func newFirestoreTestClient(ctx context.Context) *firestore.Client {
 func TestMain(m *testing.M) {
 	const FirestoreEmulatorHost = "FIRESTORE_EMULATOR_HOST"
 
-	cmd := exec.Command("gcloud", "beta", "emulators", "firestore", "start", "--host-port=localhost")
+	port, err := freeport.GetFreePort()
+	if err != nil {
+		log.Fatalf("could not find open port: %v", err)
+	}
+
+	cmd := exec.Command("gcloud", "beta", "emulators", "firestore", "start", fmt.Sprintf("--host-port=localhost:%d", port))
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 	stderr, err := cmd.StderrPipe()
 	if err != nil {
@@ -103,8 +110,7 @@ func TestMain(m *testing.M) {
 		log.Fatal(err)
 	}
 
-	var wg sync.WaitGroup
-	wg.Add(1)
+	done := make(chan struct{})
 
 	go func() {
 		buf := make([]byte, 256, 256)
@@ -123,7 +129,7 @@ func TestMain(m *testing.M) {
 				log.Printf("%s", d)
 
 				if strings.Contains(d, "Dev App Server is now running") {
-					wg.Done()
+					done <- struct{}{}
 				}
 
 				pos := strings.Index(d, FirestoreEmulatorHost+"=")
@@ -135,7 +141,11 @@ func TestMain(m *testing.M) {
 		}
 	}()
 
-	wg.Wait()
+	select {
+	case <-time.After(time.Minute):
+		log.Fatal("Could not set up firebase emulator, timeout.")
+	case <-done:
+	}
 
 	result := m.Run()
 
