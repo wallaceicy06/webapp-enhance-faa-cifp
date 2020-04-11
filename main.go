@@ -12,7 +12,7 @@ import (
 )
 
 var (
-	serviceAccountEmail = flag.String("service_account_email", "", "Service account email to verify when processing data.")
+	serviceAccountEmail = flag.String("service_account_email", os.Getenv("ENHANCE_FAA_CIFP_SERVICE_ACCOUNT"), "Service account email to verify when processing data.")
 )
 
 func main() {
