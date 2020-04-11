@@ -30,9 +30,11 @@ jobs:
             dep ensure
         fi
 
-    - name: Install gcloud and components
+    - name: Install gcloud
       uses: GoogleCloudPlatform/github-actions/setup-gcloud@master
-      run: gcloud components install cloud-firestore-emulator --quiet
+
+    - name: Install firestore emulator
+    - run: gcloud components install cloud-firestore-emulator --quiet
 
     - name: Test
       run: go test -v ./...
