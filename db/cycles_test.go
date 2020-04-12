@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"net/http"
 	"os"
 	"os/exec"
-	"strings"
 	"syscall"
 	"testing"
 	"time"
@@ -91,12 +91,19 @@ func newFirestoreTestClient(ctx context.Context) *firestore.Client {
 }
 
 func TestMain(m *testing.M) {
-	const FirestoreEmulatorHost = "FIRESTORE_EMULATOR_HOST"
+	const firestoreEmulatorHost = "FIRESTORE_EMULATOR_HOST"
 
 	port, err := freeport.GetFreePort()
 	if err != nil {
 		log.Fatalf("could not find open port: %v", err)
 	}
+
+	host := fmt.Sprintf("localhost:%d", port)
+	oldHost := os.Getenv(firestoreEmulatorHost)
+	defer func() {
+		os.Setenv(firestoreEmulatorHost, oldHost)
+	}()
+	os.Setenv(firestoreEmulatorHost, host)
 
 	cmd := exec.Command("gcloud", "beta", "emulators", "firestore", "start", fmt.Sprintf("--host-port=localhost:%d", port))
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
@@ -109,8 +116,21 @@ func TestMain(m *testing.M) {
 	if err := cmd.Start(); err != nil {
 		log.Fatal(err)
 	}
+	defer syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL)
 
-	done := make(chan struct{})
+	var ok bool
+	for i := 0; i < 10; i++ {
+		log.Printf("Attempting to connect to Firestore server %q, attempt %d.", host, i)
+		res, err := http.Get("http://" + host)
+		if err == nil && res.StatusCode == http.StatusOK {
+			ok = true
+			break
+		}
+		time.Sleep(5 * time.Second)
+	}
+	if !ok {
+		log.Fatalf("Problem starting Firestore server, response not OK.")
+	}
 
 	go func() {
 		buf := make([]byte, 256, 256)
@@ -124,31 +144,12 @@ func TestMain(m *testing.M) {
 			}
 
 			if n > 0 {
-				d := string(buf[:n])
-
-				log.Printf("%s", d)
-
-				if strings.Contains(d, "Dev App Server is now running") {
-					done <- struct{}{}
-				}
-
-				pos := strings.Index(d, FirestoreEmulatorHost+"=")
-				if pos > 0 {
-					host := d[pos+len(FirestoreEmulatorHost)+1 : len(d)-1]
-					os.Setenv(FirestoreEmulatorHost, host)
-				}
+				log.Printf("%s", buf[:n])
 			}
 		}
 	}()
 
-	select {
-	case <-time.After(time.Minute):
-		log.Fatal("Could not set up firebase emulator, timeout.")
-	case <-done:
-	}
-
 	result := m.Run()
 
-	syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL)
 	os.Exit(result)
 }
