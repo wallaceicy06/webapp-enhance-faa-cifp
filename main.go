@@ -24,8 +24,9 @@ var (
 
 func handlerWithTimeout(h http.Handler, d time.Duration) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ctx, _ := context.WithTimeout(r.Context(), d)
-		reqWithTimeout := r.Clone(ctx)
+		ctx, cancel := context.WithTimeout(r.Context(), d)
+		defer cancel()
+		reqWithTimeout := r.WithContext(ctx)
 		h.ServeHTTP(w, reqWithTimeout)
 	})
 }
