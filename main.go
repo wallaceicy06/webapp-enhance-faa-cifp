@@ -20,6 +20,7 @@ var (
 	serviceAccountEmail = flag.String("service_account_email", os.Getenv("SERVICE_ACCOUNT"), "Service account email to verify when processing data.")
 	projectID           = flag.String("project_id", os.Getenv("PROJECT_ID"), "Project ID that contains the Firestore database.")
 	disableAuth         = flag.Bool("noauth", false, "Disable authentication for testng purposes.")
+	port                = flag.String("port", os.Getenv("PORT"), "port to start server on")
 )
 
 func handlerWithTimeout(h http.Handler, d time.Duration) http.Handler {
@@ -60,14 +61,13 @@ func main() {
 		Verifier:            auth.NewVerifier(),
 	}, 60*time.Second))
 
-	port := os.Getenv("PORT")
-	if port == "" {
-		port = "8080"
-		log.Printf("Defaulting to port %s", port)
+	if *port == "" {
+		*port = "8080"
+		log.Printf("Defaulting to port %s", *port)
 	}
 
-	log.Printf("Listening on port %s", port)
-	if err := http.ListenAndServe(":"+port, nil); err != nil {
+	log.Printf("Listening on port %s", *port)
+	if err := http.ListenAndServe(":"+*port, nil); err != nil {
 		log.Fatal(err)
 	}
 }
