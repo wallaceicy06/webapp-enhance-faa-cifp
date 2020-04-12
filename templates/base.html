@@ -11,5 +11,12 @@
   <h3 style="color:red">Under construction, please stand by.</h3>
   <p>Welcome to the FAA CIFP data enhancer. This app is not associated with the Federal Aviation Administration and has no warranty.</p>
   <p>See <a href="http://seanharger.com/posts/hundredths-of-degrees-from-death">this blog post</a> for more information</p>
+  {{if .DisplayError}}<p style="color:red">{{.DisplayError}}</p>{{end}}
+  <table>
+    <tr><th>Cycle</th><th>Link</th></tr>
+    {{range .Cycles}}
+    <tr><td>{{.Name}}</td><td><a href="{{.ProcessedURL}}">Download</a></td></tr>
+    {{end}}
+  </table>
 </body>
 </html>

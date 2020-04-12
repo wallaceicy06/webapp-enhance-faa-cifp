@@ -7,6 +7,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"time"
 
 	"cloud.google.com/go/firestore"
 	"github.com/wallaceicy06/webapp-enhance-faa-cifp/auth"
@@ -20,6 +21,14 @@ var (
 	projectID           = flag.String("project_id", os.Getenv("PROJECT_ID"), "Project ID that contains the Firestore database.")
 	disableAuth         = flag.Bool("noauth", false, "Disable authentication for testng purposes.")
 )
+
+func handlerWithTimeout(h http.Handler, d time.Duration) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ctx, _ := context.WithTimeout(r.Context(), d)
+		reqWithTimeout := r.Clone(ctx)
+		h.ServeHTTP(w, reqWithTimeout)
+	})
+}
 
 func main() {
 	ctx := context.Background()
@@ -40,13 +49,15 @@ func main() {
 		Client: fsClient,
 	}
 
-	http.HandleFunc("/", index.Handle)
-	http.HandleFunc("/process", (&process.Handler{
+	http.Handle("/", handlerWithTimeout(&index.Handler{
+		Cycles: cyclesDb,
+	}, 5*time.Second))
+	http.Handle("/process", handlerWithTimeout(&process.Handler{
 		ServiceAccountEmail: *serviceAccountEmail,
-		CyclesDb:            cyclesDb,
+		Cycles:              cyclesDb,
 		DisableAuth:         *disableAuth,
 		Verifier:            auth.NewVerifier(),
-	}).Handle)
+	}, 60*time.Second))
 
 	port := os.Getenv("PORT")
 	if port == "" {

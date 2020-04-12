@@ -7,6 +7,8 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+
+	"github.com/wallaceicy06/webapp-enhance-faa-cifp/db"
 )
 
 type fakeVerifier struct {
@@ -18,6 +20,14 @@ type fakeVerifier struct {
 func (fv *fakeVerifier) VerifyGoogle(_ context.Context, token string) (string, error) {
 	fv.GotToken = token
 	return fv.Email, fv.Err
+}
+
+type fakeCyclesAdder struct {
+	Err error
+}
+
+func (fa *fakeCyclesAdder) Add(context.Context, *db.Cycle) error {
+	return fa.Err
 }
 
 func TestHandle(t *testing.T) {
@@ -60,10 +70,11 @@ func TestHandle(t *testing.T) {
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			rr := httptest.NewRecorder()
-			handler := http.HandlerFunc((&Handler{
+			handler := &Handler{
 				ServiceAccountEmail: serviceAccountEmail,
 				Verifier:            tt.fakeVerifier,
-			}).Handle)
+				Cycles:              &fakeCyclesAdder{},
+			}
 			req := httptest.NewRequest(http.MethodPost, "/", &bytes.Buffer{})
 			req.Header.Set("Authorization", tt.authHeader)
 			handler.ServeHTTP(rr, req)
