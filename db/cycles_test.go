@@ -18,6 +18,26 @@ import (
 	"google.golang.org/api/iterator"
 )
 
+func cleanUp(t *testing.T, ctx context.Context, client *firestore.Client) {
+	t.Helper()
+	iter := client.Collection(cycleCollection).Documents(ctx)
+	batch := client.Batch()
+	for {
+		doc, err := iter.Next()
+		if err == iterator.Done {
+			break
+		}
+		if err != nil {
+			t.Fatalf("could not read document: %v", err)
+		}
+
+		batch.Delete(doc.Ref)
+	}
+	if _, err := batch.Commit(ctx); err != nil {
+		t.Fatalf("could not commit batch: %v", err)
+	}
+}
+
 func TestAddListCycle(t *testing.T) {
 	for _, tt := range []struct {
 		name    string
@@ -43,25 +63,7 @@ func TestAddListCycle(t *testing.T) {
 			ctx, cancel := context.WithCancel(context.Background())
 			defer cancel()
 			testClient := newFirestoreTestClient(context.Background())
-
-			defer func() {
-				iter := testClient.Collection(cycleCollection).Documents(ctx)
-				batch := testClient.Batch()
-				for {
-					doc, err := iter.Next()
-					if err == iterator.Done {
-						break
-					}
-					if err != nil {
-						t.Fatalf("could not read document: %v", err)
-					}
-
-					batch.Delete(doc.Ref)
-				}
-				if _, err := batch.Commit(ctx); err != nil {
-					t.Fatalf("could not commit batch: %v", err)
-				}
-			}()
+			defer cleanUp(t, ctx, testClient)
 
 			cyclesDb := &Cycles{
 				Client: testClient,
@@ -78,6 +80,56 @@ func TestAddListCycle(t *testing.T) {
 				t.Errorf("cycles diff (-got +want): %s", diff)
 			}
 		})
+	}
+}
+
+func TestAddGet(t *testing.T) {
+	allCycles := []*Cycle{
+		{
+			Name:         "200326",
+			OriginalURL:  "someurl",
+			ProcessedURL: "someurl",
+		},
+		{
+			Name:         "200425",
+			OriginalURL:  "someurl",
+			ProcessedURL: "someurl",
+		},
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	testClient := newFirestoreTestClient(context.Background())
+	defer cleanUp(t, ctx, testClient)
+
+	cyclesDb := &Cycles{
+		Client: testClient,
+	}
+
+	for _, c := range allCycles {
+		if err := cyclesDb.Add(ctx, c); err != nil {
+			t.Fatalf("could not add entity: %v", err)
+		}
+	}
+	got, err := cyclesDb.Get(ctx, "200425")
+	if err != nil {
+		t.Errorf("could not list cycles: %v", err)
+	}
+	want := &Cycle{
+		Name:         "200425",
+		OriginalURL:  "someurl",
+		ProcessedURL: "someurl",
+	}
+	if diff := cmp.Diff(want, got); diff != "" {
+		t.Errorf("Get() = %+v, _ want %+v, _", got, want)
+	}
+
+	got, err = cyclesDb.Get(ctx, "doesnotexist")
+	if err != nil {
+		t.Errorf("could not list cycles: %v", err)
+	}
+	if got != nil {
+		t.Errorf("Get() = %+v, _ want <nil>, _", got)
 	}
 }
 

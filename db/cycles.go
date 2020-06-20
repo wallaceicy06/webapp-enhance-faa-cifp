@@ -3,6 +3,7 @@ package db
 import (
 	"context"
 	"fmt"
+	"log"
 
 	"cloud.google.com/go/firestore"
 	"google.golang.org/api/iterator"
@@ -25,6 +26,32 @@ func (c *Cycles) Add(ctx context.Context, cycle *Cycle) error {
 		return fmt.Errorf("could not add cycle: %v", err)
 	}
 	return nil
+}
+
+func (c *Cycles) Get(ctx context.Context, name string) (*Cycle, error) {
+	iter := c.Client.Collection(cycleCollection).Where("name", "==", name).Documents(ctx)
+	var cycle Cycle
+	var i int
+	for i = 0; ; i++ {
+		doc, err := iter.Next()
+		if err == iterator.Done {
+			break
+		}
+		if i > 0 {
+			log.Printf("More than one item in database with name %q.", name)
+			break
+		}
+		if err != nil {
+			return nil, fmt.Errorf("could not list cycles: %v", err)
+		}
+		if err := doc.DataTo(&cycle); err != nil {
+			return nil, fmt.Errorf("could not convert doc to cycle: %v", err)
+		}
+	}
+	if i == 0 {
+		return nil, nil
+	}
+	return &cycle, nil
 }
 
 func (c *Cycles) List(ctx context.Context) ([]*Cycle, error) {
