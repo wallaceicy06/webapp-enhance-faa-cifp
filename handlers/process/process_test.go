@@ -4,10 +4,16 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"fmt"
+	"io"
+	"io/ioutil"
+	"log"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
+	"github.com/google/go-cmp/cmp"
 	"github.com/wallaceicy06/webapp-enhance-faa-cifp/db"
 )
 
@@ -22,29 +28,122 @@ func (fv *fakeVerifier) VerifyGoogle(_ context.Context, token string) (string, e
 	return fv.Email, fv.Err
 }
 
-type fakeCyclesAdder struct {
-	Err error
+type fakeCyclesAdderGetter struct {
+	AddErr   error
+	GetCycle *db.Cycle
+	GetErr   error
 }
 
-func (fa *fakeCyclesAdder) Add(context.Context, *db.Cycle) error {
-	return fa.Err
+func (ag *fakeCyclesAdderGetter) Add(_ context.Context, c *db.Cycle) error {
+	log.Printf("Adding cycle %+v", c)
+	return ag.AddErr
 }
 
-func TestHandle(t *testing.T) {
+func (ag *fakeCyclesAdderGetter) Get(context.Context, string) (*db.Cycle, error) {
+	return ag.GetCycle, ag.GetErr
+}
+
+type nopWriteCloser struct {
+	io.Writer
+}
+
+func (*nopWriteCloser) Close() error { return nil }
+
+type fakeStorageWriter struct {
+	Original  bytes.Buffer
+	Processed bytes.Buffer
+}
+
+func (fs *fakeStorageWriter) GetStorageWriter(_ context.Context, bucket, objectName string) io.WriteCloser {
+	if strings.Contains(objectName, "original") {
+		return &nopWriteCloser{&fs.Original}
+	} else if strings.Contains(objectName, "processed") {
+		return &nopWriteCloser{&fs.Processed}
+	}
+	return nil
+}
+
+type fakeCifpServerConfig struct {
+	EditionsRes     func(url string) string
+	EditionsErr     bool
+	CifpFileData    []byte
+	CifpFileDataErr bool
+}
+
+type fakeCifpServer struct {
+	config  *fakeCifpServerConfig
+	baseURL string
+}
+
+func (fcs *fakeCifpServer) HandleEditions(w http.ResponseWriter, r *http.Request) {
+	if fcs.config.EditionsErr {
+		http.Error(w, "Interal error", http.StatusInternalServerError)
+		return
+	}
+	fmt.Fprintf(w, fcs.config.EditionsRes(fcs.baseURL+"/upload/cifp/current"))
+}
+
+func (fcs *fakeCifpServer) HandleFileData(w http.ResponseWriter, r *http.Request) {
+	if fcs.config.CifpFileDataErr {
+		http.Error(w, "Interal error", http.StatusInternalServerError)
+		return
+	}
+	if _, err := w.Write(fcs.config.CifpFileData); err != nil {
+		http.Error(w, "Could not write file data", http.StatusInternalServerError)
+		log.Printf("Could not write file data: %v", err)
+		return
+	}
+}
+
+func newFakeCifpServer(config *fakeCifpServerConfig) *httptest.Server {
+	srv := &fakeCifpServer{config: config}
+	mux := http.NewServeMux()
+	mux.HandleFunc("/apra/cifp/chart", srv.HandleEditions)
+	mux.HandleFunc("/upload/cifp/current", srv.HandleFileData)
+	testServer := httptest.NewServer(mux)
+	srv.baseURL = testServer.URL
+	return testServer
+}
+
+const (
+	testDataZipFile           = "original.zip"
+	wantTestDataProcessedFile = "want_processed.txt"
+)
+
+const goodEditionResTmpl = `{
+	  "edition": [{
+        "editionName": "CURRENT",
+        "format": "ZIP",
+        "editionDate": "06/18/2020",
+        "editionNumber": 7,
+        "product": {
+          "productName": "CIFP",
+          "url": %q
+        }
+      }]
+    }`
+
+func goodEditionsRes(url string) string { return fmt.Sprintf(goodEditionResTmpl, url) }
+
+func TestHandleAuth(t *testing.T) {
 	const serviceAccountEmail = "some-email@example.com"
+	cifpZipData, err := ioutil.ReadFile(testDataZipFile)
+	if err != nil {
+		t.Fatalf("Could not read data file: %v", err)
+	}
 
 	for _, tt := range []struct {
 		name         string
-		fakeVerifier *fakeVerifier
 		authHeader   string
+		fakeVerifier *fakeVerifier
 		wantStatus   int
 	}{
 		{
-			name: "Good",
+			name:       "Good",
+			authHeader: "Bearer token",
 			fakeVerifier: &fakeVerifier{
 				Email: "some-email@example.com",
 			},
-			authHeader: "Bearer token",
 			wantStatus: http.StatusOK,
 		},
 		{
@@ -53,27 +152,39 @@ func TestHandle(t *testing.T) {
 		},
 		{
 			name: "BadEmail",
+
+			authHeader: "Bearer token",
 			fakeVerifier: &fakeVerifier{
 				Email: "some-email@evil.com",
 			},
-			authHeader: "Bearer token",
 			wantStatus: http.StatusForbidden,
 		},
 		{
-			name: "VerificationError",
+			name:       "VerificationError",
+			authHeader: "Bearer token",
 			fakeVerifier: &fakeVerifier{
 				Err: errors.New("problem verifying token"),
 			},
-			authHeader: "Bearer token",
 			wantStatus: http.StatusForbidden,
 		},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
+			srv := newFakeCifpServer(
+				&fakeCifpServerConfig{
+					EditionsRes:  goodEditionsRes,
+					CifpFileData: cifpZipData,
+				},
+			)
+			defer srv.Close()
+
 			rr := httptest.NewRecorder()
+			fsw := &fakeStorageWriter{}
 			handler := &Handler{
 				ServiceAccountEmail: serviceAccountEmail,
 				Verifier:            tt.fakeVerifier,
-				Cycles:              &fakeCyclesAdder{},
+				Cycles:              &fakeCyclesAdderGetter{},
+				CifpURL:             srv.URL + "/apra/cifp/chart",
+				GetStorageWriter:    fsw.GetStorageWriter,
 			}
 			req := httptest.NewRequest(http.MethodPost, "/", &bytes.Buffer{})
 			req.Header.Set("Authorization", tt.authHeader)
@@ -84,6 +195,141 @@ func TestHandle(t *testing.T) {
 			}
 			if tt.wantStatus == http.StatusOK && tt.fakeVerifier.GotToken != "token" {
 				t.Errorf(`verifier received token %q want "token"`, tt.fakeVerifier.GotToken)
+			}
+		})
+	}
+}
+
+func TestHandle(t *testing.T) {
+	cifpZipData, err := ioutil.ReadFile(testDataZipFile)
+	if err != nil {
+		t.Fatalf("Could not read data file: %v", err)
+	}
+	wantProcessedData, err := ioutil.ReadFile(wantTestDataProcessedFile)
+	if err != nil {
+		t.Fatalf("Could not read data file: %v", err)
+	}
+
+	for _, tt := range []struct {
+		name                 string
+		fakeCifpServerConfig *fakeCifpServerConfig
+		fakeCycles           *fakeCyclesAdderGetter
+		wantStatus           int
+		wantSkipProcess      bool
+	}{
+		{
+			name: "Good",
+			fakeCifpServerConfig: &fakeCifpServerConfig{
+				EditionsRes:  goodEditionsRes,
+				CifpFileData: cifpZipData,
+			},
+			fakeCycles: &fakeCyclesAdderGetter{},
+			wantStatus: http.StatusOK,
+		},
+		{
+			name: "EditionsInvalidJson",
+			fakeCifpServerConfig: &fakeCifpServerConfig{
+				EditionsRes: func(string) string {
+					return `}{`
+				},
+				CifpFileData: cifpZipData,
+			},
+			wantStatus: http.StatusInternalServerError,
+		},
+		{
+			name: "NoEditions",
+			fakeCifpServerConfig: &fakeCifpServerConfig{
+				EditionsRes: func(string) string {
+					return `{ "edition": [] }`
+				},
+				CifpFileData: cifpZipData,
+			},
+			wantStatus: http.StatusInternalServerError,
+		},
+		{
+			name: "InvalidZipData",
+			fakeCifpServerConfig: &fakeCifpServerConfig{
+				EditionsRes:  goodEditionsRes,
+				CifpFileData: []byte("bleh"),
+			},
+			fakeCycles: &fakeCyclesAdderGetter{},
+			wantStatus: http.StatusInternalServerError,
+		},
+		{
+			name: "CycleExists",
+			fakeCifpServerConfig: &fakeCifpServerConfig{
+				EditionsRes:  goodEditionsRes,
+				CifpFileData: cifpZipData,
+			},
+			fakeCycles: &fakeCyclesAdderGetter{
+				GetCycle: &db.Cycle{Name: "06/18/2020"},
+			},
+			wantStatus:      http.StatusOK,
+			wantSkipProcess: true,
+		},
+		{
+			name: "CycleGetError",
+			fakeCifpServerConfig: &fakeCifpServerConfig{
+				EditionsRes:  goodEditionsRes,
+				CifpFileData: cifpZipData,
+			},
+			fakeCycles: &fakeCyclesAdderGetter{
+				GetErr: errors.New("problem fetching cycles"),
+			},
+			wantStatus:      http.StatusInternalServerError,
+			wantSkipProcess: true,
+		},
+		{
+			name: "CycleAddError",
+			fakeCifpServerConfig: &fakeCifpServerConfig{
+				EditionsRes:  goodEditionsRes,
+				CifpFileData: cifpZipData,
+			},
+			fakeCycles: &fakeCyclesAdderGetter{
+				AddErr: errors.New("problem adding cycle"),
+			},
+			wantStatus: http.StatusInternalServerError,
+		},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			srv := newFakeCifpServer(tt.fakeCifpServerConfig)
+			defer srv.Close()
+
+			rr := httptest.NewRecorder()
+			fsw := &fakeStorageWriter{}
+			handler := &Handler{
+				ServiceAccountEmail: "some-email@example.com",
+				Verifier: &fakeVerifier{
+					Email: "some-email@example.com",
+				},
+				Cycles:           tt.fakeCycles,
+				CifpURL:          srv.URL + "/apra/cifp/chart",
+				GetStorageWriter: fsw.GetStorageWriter,
+			}
+			req := httptest.NewRequest(http.MethodPost, "/", &bytes.Buffer{})
+			req.Header.Set("Authorization", "Bearer token")
+			handler.ServeHTTP(rr, req)
+			if status := rr.Code; status != tt.wantStatus {
+				t.Errorf("handler returned wrong status code: got %d want %d",
+					status, tt.wantStatus)
+			}
+			if tt.wantStatus != http.StatusOK {
+				return
+			}
+			if tt.wantSkipProcess {
+				if fsw.Original.Len() != 0 {
+					t.Error("wanted processing to be skipped, but got original data")
+				}
+				if fsw.Processed.Len() != 0 {
+					t.Error("wanted processing to be skipped, but got processed data")
+				}
+				return
+			}
+			if !bytes.Equal(cifpZipData, fsw.Original.Bytes()) {
+				t.Error("original data not the same as input zip data")
+			}
+			if diff := cmp.Diff(wantProcessedData, fsw.Processed.Bytes()); diff != "" {
+				t.Errorf("processed file data had diffs: %s", diff)
 			}
 		})
 	}

@@ -4,12 +4,14 @@ package main
 import (
 	"context"
 	"flag"
+	"io"
 	"log"
 	"net/http"
 	"os"
 	"time"
 
 	"cloud.google.com/go/firestore"
+	"cloud.google.com/go/storage"
 	"github.com/wallaceicy06/webapp-enhance-faa-cifp/auth"
 	"github.com/wallaceicy06/webapp-enhance-faa-cifp/db"
 	"github.com/wallaceicy06/webapp-enhance-faa-cifp/handlers/index"
@@ -47,6 +49,11 @@ func main() {
 	if err != nil {
 		log.Fatalf("Could not create firestore client: %v", err)
 	}
+	storageClient, err := storage.NewClient(ctx)
+	if err != nil {
+		log.Fatalf("Could not create storage client: %v", err)
+	}
+
 	cyclesDb := &db.Cycles{
 		Client: fsClient,
 	}
@@ -59,7 +66,11 @@ func main() {
 		Cycles:              cyclesDb,
 		DisableAuth:         *disableAuth,
 		Verifier:            auth.NewVerifier(),
-	}, 60*time.Second))
+		CifpURL:             "https://soa.smext.faa.gov/apra/cifp/chart?edition=current",
+		GetStorageWriter: func(ctx context.Context, bucket, objectName string) io.WriteCloser {
+			return storageClient.Bucket(bucket).Object(objectName).NewWriter(ctx)
+		},
+	}, 120*time.Second))
 
 	if *port == "" {
 		*port = "8080"
