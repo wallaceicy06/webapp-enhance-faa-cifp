@@ -57,6 +57,8 @@ github.com/stretchr/objx v0.1.0/go.mod h1:HFkY916IF+rwdDfMAkV7OtwuqBVzrE8GR6GFx+
 github.com/stretchr/testify v1.4.0/go.mod h1:j7eGeouHqKxXV5pUuKE4zz7dFj8WfuZ+81PSLYec5m4=
 github.com/wallaceicy06/enhance-faa-cifp v1.1.4 h1:EqkomV6skIlUQDdsbzmajwsTNuS7zxafr8Z/BTlSvjs=
 github.com/wallaceicy06/enhance-faa-cifp v1.1.4/go.mod h1:NIyhV+Qo89Cu3fbubNfPprxYfp7Goq2IK83n9lGMeVA=
+github.com/wallaceicy06/enhance-faa-cifp v1.1.5 h1:Zlqh8oE7pdD08KhYHEeGDHrSuu9RPdi24+HWJd1XD54=
+github.com/wallaceicy06/enhance-faa-cifp v1.1.5/go.mod h1:NIyhV+Qo89Cu3fbubNfPprxYfp7Goq2IK83n9lGMeVA=
 github.com/ziutek/mymysql v1.5.4 h1:GB0qdRGsTwQSBVYuVShFBKaXSnSnYYC2d9knnE1LHFs=
 github.com/ziutek/mymysql v1.5.4/go.mod h1:LMSpPZ6DbqWFxNCHW77HeMg9I646SAhApZ/wKdgO/C0=
 go.opencensus.io v0.21.0/go.mod h1:mSImk1erAIZhrmZN+AvHh14ztQfjbGwt4TtuofqLduU=
