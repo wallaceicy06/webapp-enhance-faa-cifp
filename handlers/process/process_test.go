@@ -29,13 +29,14 @@ func (fv *fakeVerifier) VerifyGoogle(_ context.Context, token string) (string, e
 }
 
 type fakeCyclesAdderGetter struct {
-	AddErr   error
-	GetCycle *db.Cycle
-	GetErr   error
+	AddedCycle *db.Cycle
+	AddErr     error
+	GetCycle   *db.Cycle
+	GetErr     error
 }
 
 func (ag *fakeCyclesAdderGetter) Add(_ context.Context, c *db.Cycle) error {
-	log.Printf("Adding cycle %+v", c)
+	ag.AddedCycle = c
 	return ag.AddErr
 }
 
@@ -216,6 +217,7 @@ func TestHandle(t *testing.T) {
 		fakeCycles           *fakeCyclesAdderGetter
 		wantStatus           int
 		wantSkipProcess      bool
+		wantAddCycle         *db.Cycle
 	}{
 		{
 			name: "Good",
@@ -225,6 +227,11 @@ func TestHandle(t *testing.T) {
 			},
 			fakeCycles: &fakeCyclesAdderGetter{},
 			wantStatus: http.StatusOK,
+			wantAddCycle: &db.Cycle{
+				Name:         "06/18/2020",
+				OriginalURL:  "https://storage.googleapis.com/faa-cifp-data/original/FAACIFP18_original_06-18-2020.zip",
+				ProcessedURL: "https://storage.googleapis.google.com/faa-cifp-data/processed/FAACIFP18_processed_06-18-2020",
+			},
 		},
 		{
 			name: "EditionsInvalidJson",
@@ -330,6 +337,9 @@ func TestHandle(t *testing.T) {
 			}
 			if diff := cmp.Diff(wantProcessedData, fsw.Processed.Bytes()); diff != "" {
 				t.Errorf("processed file data had diffs: %s", diff)
+			}
+			if diff := cmp.Diff(tt.wantAddCycle, tt.fakeCycles.AddedCycle); diff != "" {
+				t.Errorf("added cycle differs: %v", diff)
 			}
 		})
 	}
