@@ -200,8 +200,8 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	if err := h.Cycles.Add(r.Context(), &db.Cycle{
 		Name:         resCIFPInfo.Edition[0].Date,
-		OriginalURL:  "https://storage.cloud.google.com/faa-cifp-data/" + originalName,
-		ProcessedURL: "https://storage.cloud.google.com/faa-cifp-data/" + processedName,
+		OriginalURL:  "https://storage.googleapis.com/faa-cifp-data/" + originalName,
+		ProcessedURL: "https://storage.googleapis.google.com/faa-cifp-data/" + processedName,
 	}); err != nil {
 		log.Printf("Could not add cycle: %v", err)
 		http.Error(w, "Could not add cycle.", http.StatusInternalServerError)
