@@ -66,7 +66,7 @@ func main() {
 		Cycles:              cyclesDb,
 		DisableAuth:         *disableAuth,
 		Verifier:            auth.NewVerifier(),
-		CifpURL:             "https://soa.smext.faa.gov/apra/cifp/chart?edition=current",
+		CifpURL:             "https://soa.smext.faa.gov/apra/cifp/chart?edition=next",
 		GetStorageWriter: func(ctx context.Context, bucket, objectName string) io.WriteCloser {
 			return storageClient.Bucket(bucket).Object(objectName).NewWriter(ctx)
 		},
