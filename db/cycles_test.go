@@ -51,11 +51,13 @@ func TestAddListCycle(t *testing.T) {
 				Name:         "200326",
 				OriginalURL:  "someurl",
 				ProcessedURL: "someurl",
+				Date:         time.Date(2020, 7, 16, 0, 0, 0, 0, time.UTC),
 			},
 			want: []*Cycle{{
 				Name:         "200326",
 				OriginalURL:  "someurl",
 				ProcessedURL: "someurl",
+				Date:         time.Date(2020, 7, 16, 0, 0, 0, 0, time.UTC),
 			}},
 		},
 	} {
@@ -83,17 +85,107 @@ func TestAddListCycle(t *testing.T) {
 	}
 }
 
+func TestListCycleDesc(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	testClient := newFirestoreTestClient(context.Background())
+	defer cleanUp(t, ctx, testClient)
+
+	cyclesDb := &Cycles{
+		Client: testClient,
+	}
+
+	oldCycle := &Cycle{
+		Name:         "06/18/2020",
+		OriginalURL:  "someurl",
+		ProcessedURL: "someurl",
+		Date:         time.Date(2020, 6, 18, 0, 0, 0, 0, time.UTC),
+	}
+	newCycle := &Cycle{
+		Name:         "07/16/2020",
+		OriginalURL:  "someurl",
+		ProcessedURL: "someurl",
+		Date:         time.Date(2020, 7, 16, 0, 0, 0, 0, time.UTC),
+	}
+
+	cycles := []*Cycle{
+		oldCycle,
+		newCycle,
+	}
+
+	for _, c := range cycles {
+		if err := cyclesDb.Add(ctx, c); err != nil {
+			t.Errorf("could not add entity: %v", err)
+		}
+	}
+
+	want := []*Cycle{newCycle, oldCycle}
+	got, err := cyclesDb.List(ctx)
+	if err != nil {
+		t.Errorf("could not list cycles: %v", err)
+	}
+	if diff := cmp.Diff(want, got); diff != "" {
+		t.Errorf("cycles diff (-got +want): %s", diff)
+	}
+}
+
+func TestListCycleDescMaxEntries(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	testClient := newFirestoreTestClient(context.Background())
+	defer cleanUp(t, ctx, testClient)
+
+	cyclesDb := &Cycles{
+		Client: testClient,
+	}
+
+	oldCycle := &Cycle{
+		Name:         "06/18/2020",
+		OriginalURL:  "someurl",
+		ProcessedURL: "someurl",
+		Date:         time.Date(2020, 6, 18, 0, 0, 0, 0, time.UTC),
+	}
+	newCycle := &Cycle{
+		Name:         "07/16/2020",
+		OriginalURL:  "someurl",
+		ProcessedURL: "someurl",
+		Date:         time.Date(2020, 7, 16, 0, 0, 0, 0, time.UTC),
+	}
+
+	for i := 0; i < 15; i++ {
+		if err := cyclesDb.Add(ctx, oldCycle); err != nil {
+			t.Errorf("could not add entity: %v", err)
+		}
+	}
+	if err := cyclesDb.Add(ctx, newCycle); err != nil {
+		t.Errorf("could not add entity: %v", err)
+	}
+
+	got, err := cyclesDb.List(ctx)
+	if err != nil {
+		t.Errorf("could not list cycles: %v", err)
+	}
+	want := []*Cycle{
+		newCycle, oldCycle, oldCycle, oldCycle, oldCycle, oldCycle, oldCycle, oldCycle, oldCycle, oldCycle,
+	}
+	if diff := cmp.Diff(want, got); diff != "" {
+		t.Errorf("cycles diff (-got +want): %s", diff)
+	}
+}
+
 func TestAddGet(t *testing.T) {
 	allCycles := []*Cycle{
 		{
 			Name:         "200326",
 			OriginalURL:  "someurl",
 			ProcessedURL: "someurl",
+			Date:         time.Date(2020, 7, 16, 0, 0, 0, 0, time.UTC),
 		},
 		{
 			Name:         "200425",
 			OriginalURL:  "someurl",
 			ProcessedURL: "someurl",
+			Date:         time.Date(2020, 7, 16, 0, 0, 0, 0, time.UTC),
 		},
 	}
 
@@ -119,6 +211,7 @@ func TestAddGet(t *testing.T) {
 		Name:         "200425",
 		OriginalURL:  "someurl",
 		ProcessedURL: "someurl",
+		Date:         time.Date(2020, 7, 16, 0, 0, 0, 0, time.UTC),
 	}
 	if diff := cmp.Diff(want, got); diff != "" {
 		t.Errorf("Get() = %+v, _ want %+v, _", got, want)

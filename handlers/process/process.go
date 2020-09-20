@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/wallaceicy06/enhance-faa-cifp/enhance"
 	"github.com/wallaceicy06/webapp-enhance-faa-cifp/auth"
@@ -198,10 +199,18 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	parsedDate, err := time.Parse("01/02/2006", resCIFPInfo.Edition[0].Date)
+	if err != nil {
+		log.Printf("Could not parse date: %v", err)
+		http.Error(w, "Could not process FAA data.", http.StatusInternalServerError)
+		return
+	}
+
 	if err := h.Cycles.Add(r.Context(), &db.Cycle{
 		Name:         resCIFPInfo.Edition[0].Date,
 		OriginalURL:  "https://storage.googleapis.com/faa-cifp-data/" + originalName,
 		ProcessedURL: "https://storage.googleapis.google.com/faa-cifp-data/" + processedName,
+		Date:         parsedDate,
 	}); err != nil {
 		log.Printf("Could not add cycle: %v", err)
 		http.Error(w, "Could not add cycle.", http.StatusInternalServerError)

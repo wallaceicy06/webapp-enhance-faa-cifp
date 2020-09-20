@@ -4,7 +4,6 @@ import (
 	"context"
 	"log"
 	"net/http"
-	// "time"
 
 	"github.com/wallaceicy06/webapp-enhance-faa-cifp/db"
 	"github.com/wallaceicy06/webapp-enhance-faa-cifp/templates"
@@ -32,8 +31,6 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	bv := &baseValues{
 		Cycles: []*db.Cycle{},
 	}
-	// ctx, cancel := context.WithTimeout(r.Context(), 10*time.Second)
-	// defer cancel()
 	cycles, err := h.Cycles.List(r.Context())
 	if err != nil {
 		log.Printf("could not list cycles: %v", err)

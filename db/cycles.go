@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"time"
 
 	"cloud.google.com/go/firestore"
 	"google.golang.org/api/iterator"
@@ -12,9 +13,10 @@ import (
 const cycleCollection = "cycles"
 
 type Cycle struct {
-	Name         string `firestore:"name"`
-	OriginalURL  string `firestore:"original_url"`
-	ProcessedURL string `firestore:"processed_url"`
+	Name         string    `firestore:"name"`
+	OriginalURL  string    `firestore:"original_url"`
+	ProcessedURL string    `firestore:"processed_url"`
+	Date         time.Time `firestore:"date"`
 }
 
 type Cycles struct {
@@ -56,7 +58,7 @@ func (c *Cycles) Get(ctx context.Context, name string) (*Cycle, error) {
 
 func (c *Cycles) List(ctx context.Context) ([]*Cycle, error) {
 	var cycles []*Cycle
-	iter := c.Client.Collection(cycleCollection).Limit(10).Documents(ctx)
+	iter := c.Client.Collection(cycleCollection).OrderBy("date", firestore.Desc).Limit(10).Documents(ctx)
 	for {
 		doc, err := iter.Next()
 		if err == iterator.Done {
