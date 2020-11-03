@@ -231,7 +231,7 @@ func TestHandle(t *testing.T) {
 			wantAddCycle: &db.Cycle{
 				Name:         "06/18/2020",
 				OriginalURL:  "https://storage.googleapis.com/faa-cifp-data/original/FAACIFP18_original_06-18-2020.zip",
-				ProcessedURL: "https://storage.googleapis.google.com/faa-cifp-data/processed/FAACIFP18_processed_06-18-2020",
+				ProcessedURL: "https://storage.googleapis.com/faa-cifp-data/processed/FAACIFP18_processed_06-18-2020",
 				Date:         time.Date(2020, 6, 18, 0, 0, 0, 0, time.UTC),
 			},
 		},

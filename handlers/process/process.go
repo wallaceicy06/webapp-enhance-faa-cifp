@@ -209,7 +209,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if err := h.Cycles.Add(r.Context(), &db.Cycle{
 		Name:         resCIFPInfo.Edition[0].Date,
 		OriginalURL:  "https://storage.googleapis.com/faa-cifp-data/" + originalName,
-		ProcessedURL: "https://storage.googleapis.google.com/faa-cifp-data/" + processedName,
+		ProcessedURL: "https://storage.googleapis.com/faa-cifp-data/" + processedName,
 		Date:         parsedDate,
 	}); err != nil {
 		log.Printf("Could not add cycle: %v", err)
