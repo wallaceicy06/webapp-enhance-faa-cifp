@@ -51,18 +51,18 @@ type nopWriteCloser struct {
 
 func (*nopWriteCloser) Close() error { return nil }
 
-type fakeStorageWriter struct {
+type fakeGCSClient struct {
 	Original  bytes.Buffer
 	Processed bytes.Buffer
 }
 
-func (fs *fakeStorageWriter) GetStorageWriter(_ context.Context, bucket, objectName string) io.WriteCloser {
+func (fs *fakeGCSClient) NewObject(_ context.Context, objectName string, public bool) (io.WriteCloser, error) {
 	if strings.Contains(objectName, "original") {
-		return &nopWriteCloser{&fs.Original}
+		return &nopWriteCloser{&fs.Original}, nil
 	} else if strings.Contains(objectName, "processed") {
-		return &nopWriteCloser{&fs.Processed}
+		return &nopWriteCloser{&fs.Processed}, nil
 	}
-	return nil
+	return nil, nil
 }
 
 type fakeCifpServerConfig struct {
@@ -180,13 +180,12 @@ func TestHandleAuth(t *testing.T) {
 			defer srv.Close()
 
 			rr := httptest.NewRecorder()
-			fsw := &fakeStorageWriter{}
 			handler := &Handler{
 				ServiceAccountEmail: serviceAccountEmail,
 				Verifier:            tt.fakeVerifier,
 				Cycles:              &fakeCyclesAdderGetter{},
 				CifpURL:             srv.URL + "/apra/cifp/chart",
-				GetStorageWriter:    fsw.GetStorageWriter,
+				StorageClient:       &fakeGCSClient{},
 			}
 			req := httptest.NewRequest(http.MethodPost, "/", &bytes.Buffer{})
 			req.Header.Set("Authorization", tt.authHeader)
@@ -305,15 +304,15 @@ func TestHandle(t *testing.T) {
 			defer srv.Close()
 
 			rr := httptest.NewRecorder()
-			fsw := &fakeStorageWriter{}
+			fakeGCS := &fakeGCSClient{}
 			handler := &Handler{
 				ServiceAccountEmail: "some-email@example.com",
 				Verifier: &fakeVerifier{
 					Email: "some-email@example.com",
 				},
-				Cycles:           tt.fakeCycles,
-				CifpURL:          srv.URL + "/apra/cifp/chart",
-				GetStorageWriter: fsw.GetStorageWriter,
+				Cycles:        tt.fakeCycles,
+				CifpURL:       srv.URL + "/apra/cifp/chart",
+				StorageClient: fakeGCS,
 			}
 			req := httptest.NewRequest(http.MethodPost, "/", &bytes.Buffer{})
 			req.Header.Set("Authorization", "Bearer token")
@@ -326,18 +325,18 @@ func TestHandle(t *testing.T) {
 				return
 			}
 			if tt.wantSkipProcess {
-				if fsw.Original.Len() != 0 {
+				if fakeGCS.Original.Len() != 0 {
 					t.Error("wanted processing to be skipped, but got original data")
 				}
-				if fsw.Processed.Len() != 0 {
+				if fakeGCS.Processed.Len() != 0 {
 					t.Error("wanted processing to be skipped, but got processed data")
 				}
 				return
 			}
-			if !bytes.Equal(cifpZipData, fsw.Original.Bytes()) {
+			if !bytes.Equal(cifpZipData, fakeGCS.Original.Bytes()) {
 				t.Error("original data not the same as input zip data")
 			}
-			if diff := cmp.Diff(wantProcessedData, fsw.Processed.Bytes()); diff != "" {
+			if diff := cmp.Diff(wantProcessedData, fakeGCS.Processed.Bytes()); diff != "" {
 				t.Errorf("processed file data had diffs: %s", diff)
 			}
 			if diff := cmp.Diff(tt.wantAddCycle, tt.fakeCycles.AddedCycle); diff != "" {

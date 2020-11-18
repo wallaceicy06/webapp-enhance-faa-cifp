@@ -4,7 +4,6 @@ package main
 import (
 	"context"
 	"flag"
-	"io"
 	"log"
 	"net/http"
 	"os"
@@ -13,6 +12,7 @@ import (
 	"cloud.google.com/go/firestore"
 	"cloud.google.com/go/storage"
 	"github.com/wallaceicy06/webapp-enhance-faa-cifp/auth"
+	"github.com/wallaceicy06/webapp-enhance-faa-cifp/blob"
 	"github.com/wallaceicy06/webapp-enhance-faa-cifp/db"
 	"github.com/wallaceicy06/webapp-enhance-faa-cifp/handlers/index"
 	"github.com/wallaceicy06/webapp-enhance-faa-cifp/handlers/process"
@@ -21,6 +21,7 @@ import (
 var (
 	serviceAccountEmail = flag.String("service_account_email", os.Getenv("SERVICE_ACCOUNT"), "Service account email to verify when processing data.")
 	projectID           = flag.String("project_id", os.Getenv("PROJECT_ID"), "Project ID that contains the Firestore database.")
+	gcsBucket           = flag.String("gcs_bucket", "faa-cifp-data", "The Google Cloud Storage bucket to write data to.")
 	disableAuth         = flag.Bool("noauth", false, "Disable authentication for testng purposes.")
 	port                = flag.String("port", os.Getenv("PORT"), "port to start server on")
 )
@@ -49,9 +50,9 @@ func main() {
 	if err != nil {
 		log.Fatalf("Could not create firestore client: %v", err)
 	}
-	storageClient, err := storage.NewClient(ctx)
+	gcsClient, err := storage.NewClient(ctx)
 	if err != nil {
-		log.Fatalf("Could not create storage client: %v", err)
+		log.Fatalf("Could not create Google Cloud Storage client: %v", err)
 	}
 
 	cyclesDb := &db.Cycles{
@@ -67,9 +68,7 @@ func main() {
 		DisableAuth:         *disableAuth,
 		Verifier:            auth.NewVerifier(),
 		CifpURL:             "https://soa.smext.faa.gov/apra/cifp/chart?edition=next",
-		GetStorageWriter: func(ctx context.Context, bucket, objectName string) io.WriteCloser {
-			return storageClient.Bucket(bucket).Object(objectName).NewWriter(ctx)
-		},
+		StorageClient:       &blob.GCSClient{Client: gcsClient, BucketName: "faa-cifp-data"},
 	}, 120*time.Second))
 
 	if *port == "" {

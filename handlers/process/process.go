@@ -26,13 +26,17 @@ type cyclesAdderGetter interface {
 	Get(context.Context, string) (*db.Cycle, error)
 }
 
+type storageClient interface {
+	NewObject(_ context.Context, fileName string, public bool) (io.WriteCloser, error)
+}
+
 type Handler struct {
 	ServiceAccountEmail string
 	Verifier            googleVerifier
 	Cycles              cyclesAdderGetter
 	DisableAuth         bool
 	CifpURL             string
-	GetStorageWriter    func(_ context.Context, bucket, fileName string) io.WriteCloser
+	StorageClient       storageClient
 }
 
 type faaCIFPInfoResponse struct {
@@ -137,7 +141,11 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	defer os.Remove(tmpData.Name())
 	originalName := "original/FAACIFP18_original_" + convertDateToFilename(edition.Date) + ".zip"
-	originalWriter := h.GetStorageWriter(r.Context(), "faa-cifp-data", originalName)
+	originalWriter, err := h.StorageClient.NewObject(r.Context(), originalName, false)
+	if err != nil {
+		log.Printf("Could not create new blob: %v", err)
+		http.Error(w, "Could not process FAA data.", http.StatusInternalServerError)
+	}
 	defer func() {
 		if err := originalWriter.Close(); err != nil {
 			log.Printf("Could not close orignal writer: %v", err)
@@ -191,7 +199,11 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	processedName := "processed/FAACIFP18_processed_" + convertDateToFilename(edition.Date)
-	processedWriter := h.GetStorageWriter(r.Context(), "faa-cifp-data", processedName)
+	processedWriter, err := h.StorageClient.NewObject(r.Context(), processedName, true)
+	if err != nil {
+		log.Printf("Could not create new blob: %v", err)
+		http.Error(w, "Could not process FAA data.", http.StatusInternalServerError)
+	}
 	defer processedWriter.Close()
 	if err := enhance.Process(tmpCifpData, processedWriter, enhance.RemoveDuplicateLocalizers(true)); err != nil {
 		log.Printf("Could not process data: %v", err)
