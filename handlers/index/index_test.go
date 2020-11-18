@@ -32,14 +32,14 @@ func TestIndexHandler(t *testing.T) {
 			name: "Good",
 			cyclesLister: &fakeCyclesLister{
 				Cycles: []*db.Cycle{
-					{Name: "first-cycle", ProcessedURL: "http://some-url-1"},
-					{Name: "second-cycle", ProcessedURL: "http://some-url-2"},
+					{Name: "first-cycle", Processed: "some/path/to/file-1"},
+					{Name: "second-cycle", Processed: "some/path/to/file-2"},
 				},
 			},
 			wantBaseValues: &baseValues{
 				Cycles: []*db.Cycle{
-					{Name: "first-cycle", ProcessedURL: "http://some-url-1"},
-					{Name: "second-cycle", ProcessedURL: "http://some-url-2"},
+					{Name: "first-cycle", Processed: "some/path/to/file-1"},
+					{Name: "second-cycle", Processed: "some/path/to/file-2"},
 				},
 			},
 		},

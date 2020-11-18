@@ -27,7 +27,8 @@ type cyclesAdderGetter interface {
 }
 
 type storageClient interface {
-	NewObject(_ context.Context, fileName string, public bool) (io.WriteCloser, error)
+	NewObject(_ context.Context, fileName string) io.WriteCloser
+	AllowPublicAccess(_ context.Context, fileName string) error
 }
 
 type Handler struct {
@@ -141,11 +142,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	defer os.Remove(tmpData.Name())
 	originalName := "original/FAACIFP18_original_" + convertDateToFilename(edition.Date) + ".zip"
-	originalWriter, err := h.StorageClient.NewObject(r.Context(), originalName, false)
-	if err != nil {
-		log.Printf("Could not create new blob: %v", err)
-		http.Error(w, "Could not process FAA data.", http.StatusInternalServerError)
-	}
+	originalWriter := h.StorageClient.NewObject(r.Context(), originalName)
 	defer func() {
 		if err := originalWriter.Close(); err != nil {
 			log.Printf("Could not close orignal writer: %v", err)
@@ -199,14 +196,15 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	processedName := "processed/FAACIFP18_processed_" + convertDateToFilename(edition.Date)
-	processedWriter, err := h.StorageClient.NewObject(r.Context(), processedName, true)
-	if err != nil {
-		log.Printf("Could not create new blob: %v", err)
-		http.Error(w, "Could not process FAA data.", http.StatusInternalServerError)
-	}
-	defer processedWriter.Close()
+	processedWriter := h.StorageClient.NewObject(r.Context(), processedName)
 	if err := enhance.Process(tmpCifpData, processedWriter, enhance.RemoveDuplicateLocalizers(true)); err != nil {
 		log.Printf("Could not process data: %v", err)
+		http.Error(w, "Could not process FAA data.", http.StatusInternalServerError)
+		return
+	}
+	processedWriter.Close()
+	if err := h.StorageClient.AllowPublicAccess(r.Context(), processedName); err != nil {
+		log.Printf("Could not set public access: %v", err)
 		http.Error(w, "Could not process FAA data.", http.StatusInternalServerError)
 		return
 	}
@@ -219,10 +217,10 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := h.Cycles.Add(r.Context(), &db.Cycle{
-		Name:         resCIFPInfo.Edition[0].Date,
-		OriginalURL:  "https://storage.googleapis.com/faa-cifp-data/" + originalName,
-		ProcessedURL: "https://storage.googleapis.com/faa-cifp-data/" + processedName,
-		Date:         parsedDate,
+		Name:      resCIFPInfo.Edition[0].Date,
+		Original:  originalName,
+		Processed: processedName,
+		Date:      parsedDate,
 	}); err != nil {
 		log.Printf("Could not add cycle: %v", err)
 		http.Error(w, "Could not add cycle.", http.StatusInternalServerError)

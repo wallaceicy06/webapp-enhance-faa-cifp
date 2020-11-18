@@ -48,16 +48,16 @@ func TestAddListCycle(t *testing.T) {
 		{
 			name: "Good",
 			cycle: &Cycle{
-				Name:         "200326",
-				OriginalURL:  "someurl",
-				ProcessedURL: "someurl",
-				Date:         time.Date(2020, 7, 16, 0, 0, 0, 0, time.UTC),
+				Name:      "200326",
+				Original:  "original",
+				Processed: "processed",
+				Date:      time.Date(2020, 7, 16, 0, 0, 0, 0, time.UTC),
 			},
 			want: []*Cycle{{
-				Name:         "200326",
-				OriginalURL:  "someurl",
-				ProcessedURL: "someurl",
-				Date:         time.Date(2020, 7, 16, 0, 0, 0, 0, time.UTC),
+				Name:      "200326",
+				Original:  "original",
+				Processed: "processed",
+				Date:      time.Date(2020, 7, 16, 0, 0, 0, 0, time.UTC),
 			}},
 		},
 	} {
@@ -96,16 +96,16 @@ func TestListCycleDesc(t *testing.T) {
 	}
 
 	oldCycle := &Cycle{
-		Name:         "06/18/2020",
-		OriginalURL:  "someurl",
-		ProcessedURL: "someurl",
-		Date:         time.Date(2020, 6, 18, 0, 0, 0, 0, time.UTC),
+		Name:      "06/18/2020",
+		Original:  "original",
+		Processed: "processed",
+		Date:      time.Date(2020, 6, 18, 0, 0, 0, 0, time.UTC),
 	}
 	newCycle := &Cycle{
-		Name:         "07/16/2020",
-		OriginalURL:  "someurl",
-		ProcessedURL: "someurl",
-		Date:         time.Date(2020, 7, 16, 0, 0, 0, 0, time.UTC),
+		Name:      "07/16/2020",
+		Original:  "original",
+		Processed: "processed",
+		Date:      time.Date(2020, 7, 16, 0, 0, 0, 0, time.UTC),
 	}
 
 	cycles := []*Cycle{
@@ -140,16 +140,16 @@ func TestListCycleDescMaxEntries(t *testing.T) {
 	}
 
 	oldCycle := &Cycle{
-		Name:         "06/18/2020",
-		OriginalURL:  "someurl",
-		ProcessedURL: "someurl",
-		Date:         time.Date(2020, 6, 18, 0, 0, 0, 0, time.UTC),
+		Name:      "06/18/2020",
+		Original:  "original",
+		Processed: "processed",
+		Date:      time.Date(2020, 6, 18, 0, 0, 0, 0, time.UTC),
 	}
 	newCycle := &Cycle{
-		Name:         "07/16/2020",
-		OriginalURL:  "someurl",
-		ProcessedURL: "someurl",
-		Date:         time.Date(2020, 7, 16, 0, 0, 0, 0, time.UTC),
+		Name:      "07/16/2020",
+		Original:  "original",
+		Processed: "processed",
+		Date:      time.Date(2020, 7, 16, 0, 0, 0, 0, time.UTC),
 	}
 
 	for i := 0; i < 15; i++ {
@@ -176,16 +176,16 @@ func TestListCycleDescMaxEntries(t *testing.T) {
 func TestAddGet(t *testing.T) {
 	allCycles := []*Cycle{
 		{
-			Name:         "200326",
-			OriginalURL:  "someurl",
-			ProcessedURL: "someurl",
-			Date:         time.Date(2020, 7, 16, 0, 0, 0, 0, time.UTC),
+			Name:      "200326",
+			Original:  "original",
+			Processed: "processed",
+			Date:      time.Date(2020, 7, 16, 0, 0, 0, 0, time.UTC),
 		},
 		{
-			Name:         "200425",
-			OriginalURL:  "someurl",
-			ProcessedURL: "someurl",
-			Date:         time.Date(2020, 7, 16, 0, 0, 0, 0, time.UTC),
+			Name:      "200425",
+			Original:  "original",
+			Processed: "processed",
+			Date:      time.Date(2020, 7, 16, 0, 0, 0, 0, time.UTC),
 		},
 	}
 
@@ -208,10 +208,10 @@ func TestAddGet(t *testing.T) {
 		t.Errorf("could not list cycles: %v", err)
 	}
 	want := &Cycle{
-		Name:         "200425",
-		OriginalURL:  "someurl",
-		ProcessedURL: "someurl",
-		Date:         time.Date(2020, 7, 16, 0, 0, 0, 0, time.UTC),
+		Name:      "200425",
+		Original:  "original",
+		Processed: "processed",
+		Date:      time.Date(2020, 7, 16, 0, 0, 0, 0, time.UTC),
 	}
 	if diff := cmp.Diff(want, got); diff != "" {
 		t.Errorf("Get() = %+v, _ want %+v, _", got, want)

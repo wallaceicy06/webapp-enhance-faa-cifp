@@ -17,7 +17,7 @@
   <table>
     <tr><th>Cycle</th><th>Link</th></tr>
     {{range .Cycles}}
-    <tr><td>{{.Name}}</td><td><a href="{{.ProcessedURL}}">Download</a></td></tr>
+    <tr><td>{{.Name}}</td><td><a href="{{$.URLFor .Processed}}">Download</a></td></tr>
     {{end}}
   </table>
 </body>

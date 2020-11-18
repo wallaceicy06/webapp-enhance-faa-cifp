@@ -60,7 +60,8 @@ func main() {
 	}
 
 	http.Handle("/", handlerWithTimeout(&index.Handler{
-		Cycles: cyclesDb,
+		BucketName: *gcsBucket,
+		Cycles:     cyclesDb,
 	}, 5*time.Second))
 	http.Handle("/process", handlerWithTimeout(&process.Handler{
 		ServiceAccountEmail: *serviceAccountEmail,
@@ -68,7 +69,7 @@ func main() {
 		DisableAuth:         *disableAuth,
 		Verifier:            auth.NewVerifier(),
 		CifpURL:             "https://soa.smext.faa.gov/apra/cifp/chart?edition=next",
-		StorageClient:       &blob.GCSClient{Client: gcsClient, BucketName: "faa-cifp-data"},
+		StorageClient:       &blob.GCSClient{Client: gcsClient, BucketName: *gcsBucket},
 	}, 120*time.Second))
 
 	if *port == "" {

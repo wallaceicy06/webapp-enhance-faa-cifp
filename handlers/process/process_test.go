@@ -52,17 +52,23 @@ type nopWriteCloser struct {
 func (*nopWriteCloser) Close() error { return nil }
 
 type fakeGCSClient struct {
-	Original  bytes.Buffer
-	Processed bytes.Buffer
+	Original               bytes.Buffer
+	Processed              bytes.Buffer
+	AllowPublicAccessFiles []string
 }
 
-func (fs *fakeGCSClient) NewObject(_ context.Context, objectName string, public bool) (io.WriteCloser, error) {
-	if strings.Contains(objectName, "original") {
-		return &nopWriteCloser{&fs.Original}, nil
-	} else if strings.Contains(objectName, "processed") {
-		return &nopWriteCloser{&fs.Processed}, nil
+func (fs *fakeGCSClient) NewObject(_ context.Context, fileName string) io.WriteCloser {
+	if strings.Contains(fileName, "original") {
+		return &nopWriteCloser{&fs.Original}
+	} else if strings.Contains(fileName, "processed") {
+		return &nopWriteCloser{&fs.Processed}
 	}
-	return nil, nil
+	return nil
+}
+
+func (fs *fakeGCSClient) AllowPublicAccess(_ context.Context, fileName string) error {
+	fs.AllowPublicAccessFiles = append(fs.AllowPublicAccessFiles, fileName)
+	return nil
 }
 
 type fakeCifpServerConfig struct {
@@ -228,10 +234,10 @@ func TestHandle(t *testing.T) {
 			fakeCycles: &fakeCyclesAdderGetter{},
 			wantStatus: http.StatusOK,
 			wantAddCycle: &db.Cycle{
-				Name:         "06/18/2020",
-				OriginalURL:  "https://storage.googleapis.com/faa-cifp-data/original/FAACIFP18_original_06-18-2020.zip",
-				ProcessedURL: "https://storage.googleapis.com/faa-cifp-data/processed/FAACIFP18_processed_06-18-2020",
-				Date:         time.Date(2020, 6, 18, 0, 0, 0, 0, time.UTC),
+				Name:      "06/18/2020",
+				Original:  "original/FAACIFP18_original_06-18-2020.zip",
+				Processed: "processed/FAACIFP18_processed_06-18-2020",
+				Date:      time.Date(2020, 6, 18, 0, 0, 0, 0, time.UTC),
 			},
 		},
 		{
@@ -338,6 +344,12 @@ func TestHandle(t *testing.T) {
 			}
 			if diff := cmp.Diff(wantProcessedData, fakeGCS.Processed.Bytes()); diff != "" {
 				t.Errorf("processed file data had diffs: %s", diff)
+			}
+			if l := len(fakeGCS.AllowPublicAccessFiles); l != 1 {
+				t.Fatalf("expected only one file to be makred public access, got %d", l)
+			}
+			if !strings.Contains(fakeGCS.AllowPublicAccessFiles[0], "processed") {
+				t.Error("expected processed file to be marked public")
 			}
 			if diff := cmp.Diff(tt.wantAddCycle, tt.fakeCycles.AddedCycle); diff != "" {
 				t.Errorf("added cycle differs: %v", diff)

@@ -13,10 +13,10 @@ import (
 const cycleCollection = "cycles"
 
 type Cycle struct {
-	Name         string    `firestore:"name"`
-	OriginalURL  string    `firestore:"original_url"`
-	ProcessedURL string    `firestore:"processed_url"`
-	Date         time.Time `firestore:"date"`
+	Name      string    `firestore:"name"`
+	Original  string    `firestore:"original"`
+	Processed string    `firestore:"processed"`
+	Date      time.Time `firestore:"date"`
 }
 
 type Cycles struct {
